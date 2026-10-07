@@ -64,6 +64,7 @@ product_sc_files :=
 plat_sc_neverallow_files :=
 
 ##################################
+ifeq ($(BOARD_MOTO_STOCK_VENDOR_SEPOLICY),)
 include $(CLEAR_VARS)
 LOCAL_MODULE := vendor_seapp_contexts
 LOCAL_MODULE_CLASS := ETC
@@ -84,6 +85,7 @@ $(LOCAL_BUILT_MODULE): $(built_sepolicy) $(vendor_sc_files) $(HOST_OUT_EXECUTABL
 	$(hide) $(HOST_OUT_EXECUTABLES)/checkseapp -p $(PRIVATE_SEPOLICY) -o $@ $(PRIVATE_SC_FILES) $@.tmp
 
 built_vendor_sc := $(LOCAL_BUILT_MODULE)
+endif # BOARD_MOTO_STOCK_VENDOR_SEPOLICY
 vendor_sc_files :=
 
 ##################################

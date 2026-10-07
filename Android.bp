@@ -261,7 +261,7 @@ file_contexts {
 
 file_contexts {
     name: "vendor_file_contexts",
-    srcs: [":file_contexts_files"],
+    srcs: [":file_contexts_files", ":moto_vendor_file_contexts"],
     soc_specific: true,
     recovery_available: true,
 }
@@ -306,7 +306,7 @@ hwservice_contexts {
 
 hwservice_contexts {
     name: "vendor_hwservice_contexts",
-    srcs: [":hwservice_contexts_files"],
+    srcs: [":hwservice_contexts_files", ":moto_vendor_hwservice_contexts"],
     reqd_mask: true,
     soc_specific: true,
 }
@@ -339,7 +339,7 @@ property_contexts {
 
 property_contexts {
     name: "vendor_property_contexts",
-    srcs: [":property_contexts_files"],
+    srcs: [":property_contexts_files", ":moto_vendor_property_contexts"],
     reqd_mask: true,
     soc_specific: true,
     recovery_available: true,
@@ -371,7 +371,7 @@ service_contexts {
 
 service_contexts {
     name: "vendor_service_contexts",
-    srcs: [":service_contexts_files"],
+    srcs: [":service_contexts_files", ":moto_vendor_service_contexts"],
     reqd_mask: true,
     soc_specific: true,
 }

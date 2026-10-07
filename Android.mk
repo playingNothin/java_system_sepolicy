@@ -104,6 +104,10 @@ ifdef BOARD_SEPOLICY_DIRS
 BOARD_VENDOR_SEPOLICY_DIRS += $(BOARD_SEPOLICY_DIRS)
 endif
 
+# Moto G20 (java): stock vendor policy CILs (verbatim blobs) override the
+# compiled platform output for the two vendor-facing CIL modules below.
+MOTO_VENDOR_POLICY_DIR := device/motorola/java/sepolicy/vendor
+
 ifdef BOARD_ODM_SEPOLICY_DIRS
 ifneq ($(PRODUCT_SEPOLICY_SPLIT),true)
 $(error PRODUCT_SEPOLICY_SPLIT needs to be true when using BOARD_ODM_SEPOLICY_DIRS)
@@ -346,9 +350,25 @@ endif # ($(PRODUCT_PRECOMPILED_SEPOLICY),false)
 
 # These build targets are not used on non-Treble devices. However, we build these to avoid
 # divergence between Treble and non-Treble devices.
+# Moto G20 (java): plat_pub_versioned.cil and vendor_sepolicy.cil stay REQUIRED
+# always - when BOARD_MOTO_STOCK_VENDOR_SEPOLICY is set their build recipes emit
+# the stock blobs (see their definitions above), and init compiles the runtime
+# policy from these exact files. The *_contexts modules merge the stock context
+# files through the moto_vendor_* filegroups (device Android.bp), so the four
+# that carry boot-critical labels are required under the stock-policy flag too:
+# without vendor_file_contexts the merged /dev labels never ship and the
+# enforcing boot stalls at graphics init (mali0/card0 fall back to the generic
+# device label); vendor_hwservice_contexts labels the SPRD boot HAL interface.
 LOCAL_REQUIRED_MODULES += \
     plat_pub_versioned.cil \
     vendor_sepolicy.cil \
+    vendor_file_contexts \
+    vendor_hwservice_contexts \
+    vendor_property_contexts \
+    vendor_service_contexts \
+
+ifneq ($(BOARD_MOTO_STOCK_VENDOR_SEPOLICY),true)
+LOCAL_REQUIRED_MODULES += \
     plat_sepolicy_vers.txt \
 
 LOCAL_REQUIRED_MODULES += \
@@ -361,7 +381,8 @@ LOCAL_REQUIRED_MODULES += \
     vendor_service_contexts \
     vendor_hwservice_contexts \
     vendor_hwservice_contexts_test \
-    vndservice_contexts \
+    vndservice_contexts
+endif # BOARD_MOTO_STOCK_VENDOR_SEPOLICY
 
 ifdef BOARD_ODM_SEPOLICY_DIRS
 LOCAL_REQUIRED_MODULES += \
@@ -951,6 +972,7 @@ built_product_mapping_cil := $(LOCAL_BUILT_MODULE)
 endif # ifdef HAS_PRODUCT_PUBLIC_SEPOLICY
 
 #################################
+ifneq ($(BOARD_MOTO_STOCK_VENDOR_SEPOLICY),)
 include $(CLEAR_VARS)
 
 # plat_pub_versioned.cil - the exported platform policy associated with the version
@@ -962,7 +984,22 @@ LOCAL_PROPRIETARY_MODULE := true
 LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR)/etc/selinux
 
 include $(BUILD_SYSTEM)/base_rules.mk
+$(LOCAL_BUILT_MODULE): $(MOTO_VENDOR_POLICY_DIR)/plat_pub_versioned.cil
+	cp $(MOTO_VENDOR_POLICY_DIR)/plat_pub_versioned.cil $@
 
+built_pub_vers_cil := $(LOCAL_BUILT_MODULE)
+else
+include $(CLEAR_VARS)
+
+# plat_pub_versioned.cil - the exported platform policy associated with the version
+# that non-platform policy targets.
+LOCAL_MODULE := plat_pub_versioned.cil
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_TAGS := optional
+LOCAL_PROPRIETARY_MODULE := true
+LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR)/etc/selinux
+
+include $(BUILD_SYSTEM)/base_rules.mk
 $(LOCAL_BUILT_MODULE) : PRIVATE_VERS := $(BOARD_SEPOLICY_VERS)
 $(LOCAL_BUILT_MODULE) : PRIVATE_TGT_POL := $(pub_policy.cil)
 $(LOCAL_BUILT_MODULE) : PRIVATE_DEP_CIL_FILES := $(built_plat_cil) $(built_system_ext_cil) \
@@ -977,8 +1014,27 @@ $(LOCAL_BUILT_MODULE) : $(pub_policy.cil) $(HOST_OUT_EXECUTABLES)/version_policy
 		$(PRIVATE_DEP_CIL_FILES) $@ -o /dev/null -f /dev/null
 
 built_pub_vers_cil := $(LOCAL_BUILT_MODULE)
+endif # BOARD_MOTO_STOCK_VENDOR_SEPOLICY
 
 #################################
+ifneq ($(BOARD_MOTO_STOCK_VENDOR_SEPOLICY),)
+include $(CLEAR_VARS)
+
+# vendor_policy.cil - the vendor sepolicy. This needs attributization and to be combined
+# with the platform-provided policy.  It makes use of the reqd_policy_mask files from private
+# policy and the platform public policy files in order to use checkpolicy.
+LOCAL_MODULE := vendor_sepolicy.cil
+LOCAL_MODULE_CLASS := ETC
+LOCAL_MODULE_TAGS := optional
+LOCAL_PROPRIETARY_MODULE := true
+LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR)/etc/selinux
+
+include $(BUILD_SYSTEM)/base_rules.mk
+$(LOCAL_BUILT_MODULE): $(MOTO_VENDOR_POLICY_DIR)/vendor_sepolicy.cil $(MOTO_VENDOR_POLICY_DIR)/lineage_vendor_additions.cil
+	cat $(MOTO_VENDOR_POLICY_DIR)/vendor_sepolicy.cil $(MOTO_VENDOR_POLICY_DIR)/lineage_vendor_additions.cil > $@
+
+built_vendor_cil := $(LOCAL_BUILT_MODULE)
+else
 include $(CLEAR_VARS)
 
 # vendor_policy.cil - the vendor sepolicy. This needs attributization and to be combined
@@ -1031,6 +1087,7 @@ $(LOCAL_BUILT_MODULE): $(HOST_OUT_EXECUTABLES)/build_sepolicy \
 		-t $(PRIVATE_VERS) -p $(POLICYVERS) -o $@
 
 built_vendor_cil := $(LOCAL_BUILT_MODULE)
+endif # BOARD_MOTO_STOCK_VENDOR_SEPOLICY
 vendor_policy.conf :=
 
 #################################
@@ -1522,6 +1579,7 @@ include $(LOCAL_PATH)/seapp_contexts.mk
 include $(LOCAL_PATH)/contexts_tests.mk
 
 ##################################
+ifeq ($(BOARD_MOTO_STOCK_VENDOR_SEPOLICY),)
 include $(CLEAR_VARS)
 
 LOCAL_MODULE := vndservice_contexts
@@ -1548,6 +1606,7 @@ $(LOCAL_BUILT_MODULE): $(vndservice_contexts.tmp) $(built_sepolicy) $(HOST_OUT_E
 
 vnd_svcfiles :=
 vndservice_contexts.tmp :=
+endif # BOARD_MOTO_STOCK_VENDOR_SEPOLICY
 
 ##################################
 include $(LOCAL_PATH)/mac_permissions.mk

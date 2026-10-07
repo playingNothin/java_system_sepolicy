@@ -98,6 +98,7 @@ all_product_mac_perms_files :=
 all_product_mac_perms_keys :=
 
 ##################################
+ifeq ($(BOARD_MOTO_STOCK_VENDOR_SEPOLICY),)
 include $(CLEAR_VARS)
 
 LOCAL_MODULE := vendor_mac_permissions.xml
@@ -124,6 +125,7 @@ $(all_vendor_mac_perms_files)
 	@mkdir -p $(dir $@)
 	$(hide) DEFAULT_SYSTEM_DEV_CERTIFICATE="$(dir $(DEFAULT_SYSTEM_DEV_CERTIFICATE))" \
 		$(HOST_OUT_EXECUTABLES)/insertkeys.py -t $(TARGET_BUILD_VARIANT) -c $(TOP) $< -o $@ $(PRIVATE_MAC_PERMS_FILES)
+endif # BOARD_MOTO_STOCK_VENDOR_SEPOLICY
 
 vendor_mac_perms_keys.tmp :=
 all_vendor_mac_perms_files :=
